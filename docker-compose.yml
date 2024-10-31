@@ -21,8 +21,8 @@ services:
     depends_on:
       - db
     networks:
-        default:
-        internal:
+      #- default
+      - internal
 
   nginx:
     image: nginx:stable
@@ -33,6 +33,30 @@ services:
       - 80:80
     depends_on:
       - ctfd
+      - nginx-modsec
+    networks:
+      - default
+      - internal
+
+  nginx-modsec:
+    image: owasp/modsecurity-crs:4.8.0-nginx-202410301110
+    restart: always
+    volumes:
+      - ./tmp/host-fs-auditlog.log:/var/log/modsec_audit.log
+      - ./tmp/host-fs-errorlog.log:/var/log/modsec_error.log
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    environment:
+      - BACKEND="http://ctfd:8000"
+      - MODSEC_AUDIT_LOG=/var/log/modsec_audit.log
+      - ERRORLOG=/var/log/modsec_error.log
+      #- NGINX_ALWAYS_TLS_REDIRECT=on
+    depends_on:
+      - ctfd
+    networks:
+      - default
+      - internal
 
   db:
     image: mariadb:10.11
@@ -46,19 +70,18 @@ services:
     volumes:
       - .data/mysql:/var/lib/mysql
     networks:
-        internal:
-    # This command is required to set important mariadb defaults
-    command: [mysqld, --character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci, --wait_timeout=28800, --log-warnings=0]
+      internal:
+    command: [ mysqld, --character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci, --wait_timeout=28800, --log-warnings=0 ] # This command is required to set important mariadb defaults
 
   cache:
     image: redis:4
     restart: always
     volumes:
-    - .data/redis:/data
+      - .data/redis:/data
     networks:
-        internal:
+      - internal
 
 networks:
-    default:
-    internal:
-        internal: true
+  default:
+  internal:
+    internal: true
